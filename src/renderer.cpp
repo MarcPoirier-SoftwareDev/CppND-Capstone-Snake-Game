@@ -15,6 +15,19 @@ Renderer::Renderer(const std::size_t screen_width,
     std::cerr << "SDL_Error: " << SDL_GetError() << "\n";
   }
 
+  // Initialize SDL_ttf  // Added
+  if (TTF_Init() < 0) {
+    std::cerr << "SDL_ttf could not initialize.\n";
+    std::cerr << "TTF_Error: " << TTF_GetError() << "\n";
+  }
+
+  // Load font (use system DejaVuSans.ttf; )
+  font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 48);  // Modified: Use full system path; Font size 48 for visibility
+  if (font == nullptr) {
+    std::cerr << "Failed to load font.\n";
+    std::cerr << "TTF_Error: " << TTF_GetError() << "\n";
+  }
+
   // Create Window
   sdl_window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED, screen_width,
@@ -34,11 +47,13 @@ Renderer::Renderer(const std::size_t screen_width,
 }
 
 Renderer::~Renderer() {
+  TTF_CloseFont(font);  // Added: Clean up font
+  TTF_Quit();  // Added: Quit SDL_ttf
   SDL_DestroyWindow(sdl_window);
   SDL_Quit();
 }
 
-void Renderer::Render(Snake const snake, SDL_Point const &food) {
+void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused) {  // Modified: Added bool paused parameter
   SDL_Rect block;
   block.w = screen_width / grid_width;
   block.h = screen_height / grid_height;
@@ -70,6 +85,28 @@ void Renderer::Render(Snake const snake, SDL_Point const &food) {
     SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
   }
   SDL_RenderFillRect(sdl_renderer, &block);
+
+  // Added: Render "PAUSED" text if paused
+  if (paused && font != nullptr) {
+    SDL_Color textColor = {255, 255, 255, 255};  // White text
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, "PAUSED", textColor);
+    if (textSurface != nullptr) {
+      SDL_Texture* textTexture = SDL_CreateTextureFromSurface(sdl_renderer, textSurface);
+      if (textTexture != nullptr) {
+        int textWidth = textSurface->w;
+        int textHeight = textSurface->h;
+        SDL_Rect textRect = {
+            static_cast<int>((screen_width - textWidth) / 2),
+            static_cast<int>((screen_height - textHeight) / 2),
+            textWidth,
+            textHeight
+        };
+        SDL_RenderCopy(sdl_renderer, textTexture, nullptr, &textRect);
+        SDL_DestroyTexture(textTexture);
+      }
+      SDL_FreeSurface(textSurface);
+    }
+  }
 
   // Update Screen
   SDL_RenderPresent(sdl_renderer);
