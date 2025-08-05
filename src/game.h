@@ -6,8 +6,17 @@
 #include <map>     // Added
 #include "SDL.h"
 #include "controller.h"
-#include "renderer.h"
-#include "snake.h"
+#include "snake.h"  // Moved up for Snake::Direction in MovingObstacle
+
+// Added: Moved struct outside Game class for visibility in renderer.h
+struct MovingObstacle {
+  float x;
+  float y;
+  Snake::Direction dir;
+  float speed{0.05f};  // Slower than snake's initial 0.1f
+};
+
+#include "renderer.h"  // Include after struct definition to avoid issues
 
 class Game {
  public:
@@ -35,6 +44,11 @@ class Game {
   std::map<std::string, int> high_scores;
   int global_high_score{0};
   std::string global_high_name;
+
+  // Added: For obstacles (updated to use non-nested MovingObstacle)
+  std::vector<SDL_Point> fixed_obstacles;
+  std::vector<MovingObstacle> moving_obstacles;
+  bool IsObstacle(int x, int y) const;
 
   void PlaceFood();
   void Update();

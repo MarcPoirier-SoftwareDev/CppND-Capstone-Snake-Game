@@ -7,15 +7,20 @@
 #include "SDL_ttf.h"
 #include "snake.h"
 
+struct MovingObstacle;
+
 class Renderer {
  public:
   Renderer(const std::size_t screen_width, const std::size_t screen_height,
            const std::size_t grid_width, const std::size_t grid_height);
   ~Renderer();
 
+  // Modified: Added obstacle params (updated to use non-nested MovingObstacle)
   void Render(Snake const snake, SDL_Point const &food, bool paused, bool game_over,
               int score, const std::string &name_input, int global_high_score,
-              const std::string &global_high_name);  // Modified: Added params
+              const std::string &global_high_name,
+              const std::vector<SDL_Point> &fixed_obstacles,
+              const std::vector<MovingObstacle> &moving_obstacles);
   void UpdateWindowTitle(int score, int fps);
 
  private:

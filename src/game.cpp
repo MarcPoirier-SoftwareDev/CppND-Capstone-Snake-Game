@@ -3,12 +3,47 @@
 #include <fstream>  // Added
 #include <string>   // Added (though included via header)
 #include "SDL.h"
+#include <cmath>
 
 Game::Game(std::size_t grid_width, std::size_t grid_height)
     : snake(grid_width, grid_height),
       engine(dev()),
       random_w(0, static_cast<int>(grid_width - 1)),
       random_h(0, static_cast<int>(grid_height - 1)) {
+  // Added: Random distribution for directions
+  std::uniform_int_distribution<int> random_dir(0, 3);
+
+  // Added: Place fixed obstacles (5)
+  for (int i = 0; i < 5; ++i) {
+    int x, y;
+    bool valid;
+    do {
+      x = random_w(engine);
+      y = random_h(engine);
+      valid = !snake.SnakeCell(x, y);
+      for (const auto& ob : fixed_obstacles) {
+        if (ob.x == x && ob.y == y) valid = false;
+      }
+    } while (!valid);
+    fixed_obstacles.push_back({x, y});
+  }
+
+  // Added: Place moving obstacles (3)
+  for (int i = 0; i < 3; ++i) {
+    int x, y;
+    bool valid;
+    do {
+      x = random_w(engine);
+      y = random_h(engine);
+      valid = !snake.SnakeCell(x, y) && !IsObstacle(x, y);
+    } while (!valid);
+    MovingObstacle mo;
+    mo.x = static_cast<float>(x);
+    mo.y = static_cast<float>(y);
+    mo.dir = static_cast<Snake::Direction>(random_dir(engine));
+    moving_obstacles.push_back(mo);
+  }
+
   PlaceFood();
 
   // Added: Load high scores
@@ -48,7 +83,9 @@ void Game::Run(Controller const &controller, Renderer &renderer,
       Update();
     }
 
-    renderer.Render(snake, food, paused, game_over, score, name_input, global_high_score, global_high_name);  // Modified: Added extra params
+    // Modified: Passed obstacles to renderer
+    renderer.Render(snake, food, paused, game_over, score, name_input, global_high_score, global_high_name,
+                    fixed_obstacles, moving_obstacles);
 
     frame_end = SDL_GetTicks();
 
@@ -81,9 +118,8 @@ void Game::PlaceFood() {
   while (true) {
     x = random_w(engine);
     y = random_h(engine);
-    // Check that the location is not occupied by a snake item before placing
-    // food.
-    if (!snake.SnakeCell(x, y)) {
+    // Modified: Also check not on obstacle
+    if (!snake.SnakeCell(x, y) && !IsObstacle(x, y)) {
       food.x = x;
       food.y = y;
       return;
@@ -97,10 +133,38 @@ void Game::Update() {
     return;
   }
 
+  // Added: Update moving obstacles first
+  for (auto& mo : moving_obstacles) {
+    switch (mo.dir) {
+      case Snake::Direction::kUp:
+        mo.y -= mo.speed;
+        break;
+      case Snake::Direction::kDown:
+        mo.y += mo.speed;
+        break;
+      case Snake::Direction::kLeft:
+        mo.x -= mo.speed;
+        break;
+      case Snake::Direction::kRight:
+        mo.x += mo.speed;
+        break;
+    }
+    // Wrap around like snake
+    mo.x = std::fmod(mo.x + static_cast<float>(random_w.max() + 1), static_cast<float>(random_w.max() + 1));
+    mo.y = std::fmod(mo.y + static_cast<float>(random_h.max() + 1), static_cast<float>(random_h.max() + 1));
+  }
+
   snake.Update();
 
   int new_x = static_cast<int>(snake.head_x);
   int new_y = static_cast<int>(snake.head_y);
+
+  // Added: Check for obstacle collision
+  if (IsObstacle(new_x, new_y)) {
+    snake.alive = false;
+    game_over = true;
+    return;
+  }
 
   if (food.x == new_x && food.y == new_y) {
     score++;
@@ -122,4 +186,15 @@ void Game::SaveHighScore() {
   for (const auto& p : high_scores) {
     out << p.first << " " << p.second << std::endl;
   }
+}
+
+// Added: Helper to check if a cell is an obstacle
+bool Game::IsObstacle(int x, int y) const {
+  for (const auto& ob : fixed_obstacles) {
+    if (ob.x == x && ob.y == y) return true;
+  }
+  for (const auto& mo : moving_obstacles) {
+    if (static_cast<int>(mo.x) == x && static_cast<int>(mo.y) == y) return true;
+  }
+  return false;
 }

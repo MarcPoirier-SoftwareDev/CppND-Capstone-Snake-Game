@@ -3,6 +3,7 @@
 #include <string>
 #include "SDL.h"
 #include "SDL_ttf.h"
+#include "game.h"  // Added: For MovingObstacle struct access
 
 Renderer::Renderer(const std::size_t screen_width,
                    const std::size_t screen_height,
@@ -57,7 +58,9 @@ Renderer::~Renderer() {
 
 void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, bool game_over,
                       int score, const std::string &name_input, int global_high_score,
-                      const std::string &global_high_name) {
+                      const std::string &global_high_name,
+                      const std::vector<SDL_Point> &fixed_obstacles,
+                      const std::vector<MovingObstacle> &moving_obstacles) {
   SDL_Rect block;
   block.w = screen_width / grid_width;
   block.h = screen_height / grid_height;
@@ -66,10 +69,58 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
   SDL_SetRenderDrawColor(sdl_renderer, 0x1E, 0x1E, 0x1E, 0xFF);
   SDL_RenderClear(sdl_renderer);
 
+  // Modified: Render game elements (food, snake, obstacles) always, to show final state on game over
+
+  // Render food (green)
+  SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0xFF, 0x00, 0xFF);
+  block.x = food.x * block.w;
+  block.y = food.y * block.h;
+  SDL_RenderFillRect(sdl_renderer, &block);
+
+  // Render snake's body
+  SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+  for (SDL_Point const &point : snake.body) {
+    block.x = point.x * block.w;
+    block.y = point.y * block.h;
+    SDL_RenderFillRect(sdl_renderer, &block);
+  }
+
+  // Render snake's head
+  block.x = static_cast<int>(snake.head_x) * block.w;
+  block.y = static_cast<int>(snake.head_y) * block.h;
+  if (snake.alive) {
+    SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0x7A, 0xCC, 0xFF);
+  } else {
+    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
+  }
+  SDL_RenderFillRect(sdl_renderer, &block);
+
+  // Added: Render fixed obstacles (red)
+  SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
+  for (const auto& ob : fixed_obstacles) {
+    block.x = ob.x * block.w;
+    block.y = ob.y * block.h;
+    SDL_RenderFillRect(sdl_renderer, &block);
+  }
+
+  // Added: Render moving obstacles (yellow)
+  SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xCC, 0x00, 0xFF); 
+  for (const auto& mo : moving_obstacles) {
+    block.x = static_cast<int>(mo.x) * block.w;
+    block.y = static_cast<int>(mo.y) * block.h;
+    SDL_RenderFillRect(sdl_renderer, &block);
+  }
+
+  // Render paused text if applicable
+  if (paused && font != nullptr) {
+    SDL_Color textColor = {255, 255, 255, 255};
+    RenderText("PAUSED", screen_width / 2, screen_height / 2, textColor, true);
+  }
+
   if (game_over) {
     SDL_Color textColor = {255, 255, 255, 255};
 
-    // Render Game Over texts
+    // Render Game Over texts (overlaid on the game state)
     RenderText("Game Over", screen_width / 2, screen_height / 4, textColor, true);
 
     std::string score_text = "Score: " + std::to_string(score);
@@ -90,36 +141,6 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
       display_name += "_";
     }
     RenderText(display_name, screen_width / 2, screen_height / 1.4, textColor, true);
-  } else {
-    // Render food
-    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xCC, 0x00, 0xFF);
-    block.x = food.x * block.w;
-    block.y = food.y * block.h;
-    SDL_RenderFillRect(sdl_renderer, &block);
-
-    // Render snake's body
-    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    for (SDL_Point const &point : snake.body) {
-      block.x = point.x * block.w;
-      block.y = point.y * block.h;
-      SDL_RenderFillRect(sdl_renderer, &block);
-    }
-
-    // Render snake's head
-    block.x = static_cast<int>(snake.head_x) * block.w;
-    block.y = static_cast<int>(snake.head_y) * block.h;
-    if (snake.alive) {
-      SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0x7A, 0xCC, 0xFF);
-    } else {
-      SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
-    }
-    SDL_RenderFillRect(sdl_renderer, &block);
-
-    // Render paused (refactored to use RenderText)
-    if (paused && font != nullptr) {
-      SDL_Color textColor = {255, 255, 255, 255};
-      RenderText("PAUSED", screen_width / 2, screen_height / 2, textColor, true);
-    }
   }
 
   // Update Screen
