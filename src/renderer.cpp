@@ -1,6 +1,8 @@
 #include "renderer.h"
 #include <iostream>
 #include <string>
+#include "SDL.h"
+#include "SDL_ttf.h"
 
 Renderer::Renderer(const std::size_t screen_width,
                    const std::size_t screen_height,
@@ -53,7 +55,9 @@ Renderer::~Renderer() {
   SDL_Quit();
 }
 
-void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused) {  // Modified: Added bool paused parameter
+void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, bool game_over,
+                      int score, const std::string &name_input, int global_high_score,
+                      const std::string &global_high_name) {
   SDL_Rect block;
   block.w = screen_width / grid_width;
   block.h = screen_height / grid_height;
@@ -62,49 +66,59 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused) {  
   SDL_SetRenderDrawColor(sdl_renderer, 0x1E, 0x1E, 0x1E, 0xFF);
   SDL_RenderClear(sdl_renderer);
 
-  // Render food
-  SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xCC, 0x00, 0xFF);
-  block.x = food.x * block.w;
-  block.y = food.y * block.h;
-  SDL_RenderFillRect(sdl_renderer, &block);
+  if (game_over) {
+    SDL_Color textColor = {255, 255, 255, 255};
 
-  // Render snake's body
-  SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-  for (SDL_Point const &point : snake.body) {
-    block.x = point.x * block.w;
-    block.y = point.y * block.h;
-    SDL_RenderFillRect(sdl_renderer, &block);
-  }
+    // Render Game Over texts
+    RenderText("Game Over", screen_width / 2, screen_height / 4, textColor, true);
 
-  // Render snake's head
-  block.x = static_cast<int>(snake.head_x) * block.w;
-  block.y = static_cast<int>(snake.head_y) * block.h;
-  if (snake.alive) {
-    SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0x7A, 0xCC, 0xFF);
+    std::string score_text = "Score: " + std::to_string(score);
+    RenderText(score_text, screen_width / 2, screen_height / 3, textColor, true);
+
+    std::string high_text = "High Score: " + global_high_name + " - " + std::to_string(global_high_score);
+    RenderText(high_text, screen_width / 2, screen_height / 2.5, textColor, true);
+
+    if (score > global_high_score) {
+      RenderText("New High Score!", screen_width / 2, screen_height / 2, textColor, true);
+    }
+
+    RenderText("Enter your name:", screen_width / 2, screen_height / 1.5, textColor, true);
+
+    // Add blinking cursor
+    std::string display_name = name_input;
+    if ((SDL_GetTicks() / 500) % 2 == 0) {
+      display_name += "_";
+    }
+    RenderText(display_name, screen_width / 2, screen_height / 1.4, textColor, true);
   } else {
-    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
-  }
-  SDL_RenderFillRect(sdl_renderer, &block);
+    // Render food
+    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xCC, 0x00, 0xFF);
+    block.x = food.x * block.w;
+    block.y = food.y * block.h;
+    SDL_RenderFillRect(sdl_renderer, &block);
 
-  // Added: Render "PAUSED" text if paused
-  if (paused && font != nullptr) {
-    SDL_Color textColor = {255, 255, 255, 255};  // White text
-    SDL_Surface* textSurface = TTF_RenderText_Solid(font, "PAUSED", textColor);
-    if (textSurface != nullptr) {
-      SDL_Texture* textTexture = SDL_CreateTextureFromSurface(sdl_renderer, textSurface);
-      if (textTexture != nullptr) {
-        int textWidth = textSurface->w;
-        int textHeight = textSurface->h;
-        SDL_Rect textRect = {
-            static_cast<int>((screen_width - textWidth) / 2),
-            static_cast<int>((screen_height - textHeight) / 2),
-            textWidth,
-            textHeight
-        };
-        SDL_RenderCopy(sdl_renderer, textTexture, nullptr, &textRect);
-        SDL_DestroyTexture(textTexture);
-      }
-      SDL_FreeSurface(textSurface);
+    // Render snake's body
+    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+    for (SDL_Point const &point : snake.body) {
+      block.x = point.x * block.w;
+      block.y = point.y * block.h;
+      SDL_RenderFillRect(sdl_renderer, &block);
+    }
+
+    // Render snake's head
+    block.x = static_cast<int>(snake.head_x) * block.w;
+    block.y = static_cast<int>(snake.head_y) * block.h;
+    if (snake.alive) {
+      SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0x7A, 0xCC, 0xFF);
+    } else {
+      SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
+    }
+    SDL_RenderFillRect(sdl_renderer, &block);
+
+    // Render paused (refactored to use RenderText)
+    if (paused && font != nullptr) {
+      SDL_Color textColor = {255, 255, 255, 255};
+      RenderText("PAUSED", screen_width / 2, screen_height / 2, textColor, true);
     }
   }
 
@@ -115,4 +129,29 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused) {  
 void Renderer::UpdateWindowTitle(int score, int fps) {
   std::string title{"Snake Score: " + std::to_string(score) + " FPS: " + std::to_string(fps)};
   SDL_SetWindowTitle(sdl_window, title.c_str());
+}
+
+// Added: Helper function
+void Renderer::RenderText(const std::string &text, int x, int y, SDL_Color color, bool center) {
+  if (text.empty() || font == nullptr) return;
+
+  SDL_Surface* textSurface = TTF_RenderText_Solid(font, text.c_str(), color);
+  if (textSurface == nullptr) return;
+
+  SDL_Texture* textTexture = SDL_CreateTextureFromSurface(sdl_renderer, textSurface);
+  if (textTexture == nullptr) {
+    SDL_FreeSurface(textSurface);
+    return;
+  }
+
+  int textWidth = textSurface->w;
+  int textHeight = textSurface->h;
+  SDL_Rect textRect = {x, y, textWidth, textHeight};
+  if (center) {
+    textRect.x -= textWidth / 2;
+  }
+
+  SDL_RenderCopy(sdl_renderer, textTexture, nullptr, &textRect);
+  SDL_DestroyTexture(textTexture);
+  SDL_FreeSurface(textSurface);
 }

@@ -1,5 +1,7 @@
 #include "game.h"
 #include <iostream>
+#include <fstream>  // Added
+#include <string>   // Added (though included via header)
 #include "SDL.h"
 
 Game::Game(std::size_t grid_width, std::size_t grid_height)
@@ -8,6 +10,18 @@ Game::Game(std::size_t grid_width, std::size_t grid_height)
       random_w(0, static_cast<int>(grid_width - 1)),
       random_h(0, static_cast<int>(grid_height - 1)) {
   PlaceFood();
+
+  // Added: Load high scores
+  std::ifstream in("highscore.txt");
+  std::string n;
+  int s;
+  while (in >> n >> s) {
+    high_scores[n] = s;
+    if (s > global_high_score) {
+      global_high_score = s;
+      global_high_name = n;
+    }
+  }
 }
 
 void Game::Run(Controller const &controller, Renderer &renderer,
@@ -18,37 +32,47 @@ void Game::Run(Controller const &controller, Renderer &renderer,
   Uint32 frame_duration;
   int frame_count = 0;
   bool running = true;
+  bool text_input_active = false;  // Added
 
   while (running) {
     frame_start = SDL_GetTicks();
 
-    // Input, Update, Render - the main game loop.
-    controller.HandleInput(running, snake, paused);  // Modified: Pass paused to HandleInput
-    if (!paused) {  // Added: Skip Update() when paused
+    controller.HandleInput(running, snake, paused, game_over, name_input);  // Modified: Passed game_over and name_input
+
+    if (game_over) {
+      if (!text_input_active) {
+        SDL_StartTextInput();
+        text_input_active = true;
+      }
+    } else if (!paused) {
       Update();
     }
-    renderer.Render(snake, food, paused);  // Modified: Pass paused to Render
+
+    renderer.Render(snake, food, paused, game_over, score, name_input, global_high_score, global_high_name);  // Modified: Added extra params
 
     frame_end = SDL_GetTicks();
 
-    // Keep track of how long each loop through the input/update/render cycle
-    // takes.
     frame_count++;
     frame_duration = frame_end - frame_start;
 
-    // After every second, update the window title.
     if (frame_end - title_timestamp >= 1000) {
       renderer.UpdateWindowTitle(score, frame_count);
       frame_count = 0;
       title_timestamp = frame_end;
     }
 
-    // If the time for this frame is too small (i.e. frame_duration is
-    // smaller than the target ms_per_frame), delay the loop to
-    // achieve the correct frame rate.
     if (frame_duration < target_frame_duration) {
       SDL_Delay(target_frame_duration - frame_duration);
     }
+  }
+
+  if (text_input_active) {
+    SDL_StopTextInput();
+  }
+
+  // Added: Save if applicable
+  if (game_over && !name_input.empty()) {
+    SaveHighScore();
   }
 }
 
@@ -68,18 +92,19 @@ void Game::PlaceFood() {
 }
 
 void Game::Update() {
-  if (!snake.alive) return;
+  if (!snake.alive) {
+    game_over = true;  // Modified: Set game_over
+    return;
+  }
 
   snake.Update();
 
   int new_x = static_cast<int>(snake.head_x);
   int new_y = static_cast<int>(snake.head_y);
 
-  // Check if there's food over here
   if (food.x == new_x && food.y == new_y) {
     score++;
     PlaceFood();
-    // Grow snake and increase speed.
     snake.GrowBody();
     snake.speed += 0.02;
   }
@@ -87,3 +112,14 @@ void Game::Update() {
 
 int Game::GetScore() const { return score; }
 int Game::GetSize() const { return snake.size; }
+
+// Added
+void Game::SaveHighScore() {
+  if (score > high_scores[name_input]) {
+    high_scores[name_input] = score;
+  }
+  std::ofstream out("highscore.txt");
+  for (const auto& p : high_scores) {
+    out << p.first << " " << p.second << std::endl;
+  }
+}

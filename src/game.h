@@ -2,6 +2,8 @@
 #define GAME_H
 
 #include <random>
+#include <string>  // Added
+#include <map>     // Added
 #include "SDL.h"
 #include "controller.h"
 #include "renderer.h"
@@ -25,10 +27,18 @@ class Game {
   std::uniform_int_distribution<int> random_h;
 
   int score{0};
-  bool paused{false};  // Added: Pause state
+  bool paused{false};
+
+  // Added
+  bool game_over{false};
+  std::string name_input;
+  std::map<std::string, int> high_scores;
+  int global_high_score{0};
+  std::string global_high_name;
 
   void PlaceFood();
   void Update();
+  void SaveHighScore();  // Added
 };
 
 #endif
