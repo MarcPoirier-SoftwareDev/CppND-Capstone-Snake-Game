@@ -28,6 +28,7 @@ class Game {
 
  private:
   Snake snake;
+  Snake ai_snake;  // Added: AI-controlled snake
   SDL_Point food;
 
   std::random_device dev;
@@ -36,6 +37,7 @@ class Game {
   std::uniform_int_distribution<int> random_h;
 
   int score{0};
+  int ai_score{0};  // Added: Score for AI snake
   bool paused{false};
 
   // Added
@@ -49,10 +51,16 @@ class Game {
   std::vector<SDL_Point> fixed_obstacles;
   std::vector<MovingObstacle> moving_obstacles;
   bool IsObstacle(int x, int y) const;
+  bool IsBlocked(int x, int y) const;  // Added: For A* to check blocked cells
+
+  // Added: Grid dimensions as members
+  std::size_t grid_width_;
+  std::size_t grid_height_;
 
   void PlaceFood();
   void Update();
   void SaveHighScore();  // Added
+  Snake::Direction ComputeAIDirection();  // Added: A* for AI direction
 };
 
 #endif

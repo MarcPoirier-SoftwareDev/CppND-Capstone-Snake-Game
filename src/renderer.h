@@ -15,9 +15,9 @@ class Renderer {
            const std::size_t grid_width, const std::size_t grid_height);
   ~Renderer();
 
-  // Modified: Added obstacle params (updated to use non-nested MovingObstacle)
-  void Render(Snake const snake, SDL_Point const &food, bool paused, bool game_over,
-              int score, const std::string &name_input, int global_high_score,
+  // Modified: Added AI snake and ai_score params
+  void Render(Snake const snake, Snake const &ai_snake, SDL_Point const &food, bool paused, bool game_over,
+              int score, int ai_score, const std::string &name_input, int global_high_score,
               const std::string &global_high_name,
               const std::vector<SDL_Point> &fixed_obstacles,
               const std::vector<MovingObstacle> &moving_obstacles);

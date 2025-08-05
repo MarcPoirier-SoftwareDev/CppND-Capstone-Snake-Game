@@ -56,8 +56,8 @@ Renderer::~Renderer() {
   SDL_Quit();
 }
 
-void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, bool game_over,
-                      int score, const std::string &name_input, int global_high_score,
+void Renderer::Render(Snake const snake, Snake const &ai_snake, SDL_Point const &food, bool paused, bool game_over,
+                      int score, int ai_score, const std::string &name_input, int global_high_score,
                       const std::string &global_high_name,
                       const std::vector<SDL_Point> &fixed_obstacles,
                       const std::vector<MovingObstacle> &moving_obstacles) {
@@ -77,7 +77,7 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
   block.y = food.y * block.h;
   SDL_RenderFillRect(sdl_renderer, &block);
 
-  // Render snake's body
+  // Render player's snake body
   SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
   for (SDL_Point const &point : snake.body) {
     block.x = point.x * block.w;
@@ -85,11 +85,29 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
     SDL_RenderFillRect(sdl_renderer, &block);
   }
 
-  // Render snake's head
+  // Render player's snake head
   block.x = static_cast<int>(snake.head_x) * block.w;
   block.y = static_cast<int>(snake.head_y) * block.h;
   if (snake.alive) {
     SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0x7A, 0xCC, 0xFF);
+  } else {
+    SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
+  }
+  SDL_RenderFillRect(sdl_renderer, &block);
+
+  // Added: Render AI snake's body (gray)
+  SDL_SetRenderDrawColor(sdl_renderer, 0xAA, 0xAA, 0xAA, 0xFF);
+  for (SDL_Point const &point : ai_snake.body) {
+    block.x = point.x * block.w;
+    block.y = point.y * block.h;
+    SDL_RenderFillRect(sdl_renderer, &block);
+  }
+
+  // Added: Render AI snake's head (green if alive)
+  block.x = static_cast<int>(ai_snake.head_x) * block.w;
+  block.y = static_cast<int>(ai_snake.head_y) * block.h;
+  if (ai_snake.alive) {
+    SDL_SetRenderDrawColor(sdl_renderer, 0x00, 0xCC, 0x7A, 0xFF);
   } else {
     SDL_SetRenderDrawColor(sdl_renderer, 0xFF, 0x00, 0x00, 0xFF);
   }
@@ -117,9 +135,12 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
     RenderText("PAUSED", screen_width / 2, screen_height / 2, textColor, true);
   }
 
-  if (game_over) {
-    SDL_Color textColor = {255, 255, 255, 255};
+  // Added: Render AI score in top-right
+  SDL_Color textColor = {255, 255, 255, 255};
+  std::string ai_score_text = "AI: " + std::to_string(ai_score);
+  RenderText(ai_score_text, screen_width - 10, 10, textColor, false);
 
+  if (game_over) {
     // Render Game Over texts (overlaid on the game state)
     RenderText("Game Over", screen_width / 2, screen_height / 4, textColor, true);
 
@@ -141,6 +162,10 @@ void Renderer::Render(Snake const snake, SDL_Point const &food, bool paused, boo
       display_name += "_";
     }
     RenderText(display_name, screen_width / 2, screen_height / 1.4, textColor, true);
+
+    // Added: Show AI score on game over
+    std::string ai_final_text = "AI Score: " + std::to_string(ai_score);
+    RenderText(ai_final_text, screen_width / 2, screen_height / 2.2, textColor, true);
   }
 
   // Update Screen
