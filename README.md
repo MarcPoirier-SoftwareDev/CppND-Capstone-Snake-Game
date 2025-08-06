@@ -1,3 +1,12 @@
+Added functionality to the Game
+- Pause and unpause the game
+- Add a Pause Screen
+- Allow players to enter their name and save their high score to a text file
+- Add fixed and moving obstacles to the game
+- Add another snake to the game that is controlled by the computer using the A* search algorithm
+
+
+
 # CPPND: Capstone Snake Game Example
 
 This is a starter repo for the Capstone project in the [Udacity C++ Nanodegree Program](https://www.udacity.com/course/c-plus-plus-nanodegree--nd213). The code for this repo was inspired by [this](https://codereview.stackexchange.com/questions/212296/snake-game-in-c-with-sdl) excellent StackOverflow post and set of responses.
